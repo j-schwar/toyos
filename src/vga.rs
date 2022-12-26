@@ -159,3 +159,30 @@ macro_rules! println {
 pub fn _print(args: core::fmt::Arguments) {
     WRITER.lock().write_fmt(args).unwrap();
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test_case]
+    fn test_simple_println() {
+        println!("Hello World!");
+    }
+
+    #[test_case]
+    fn test_println_many() {
+        for _ in 0..200 {
+            println!("Hello World!");
+        }
+    }
+
+    #[test_case]
+    fn test_println_output() {
+        let s = "Some test string that fits on a single line";
+        println!("{}", s);
+        for (i, c) in s.chars().enumerate() {
+            let screen_char = WRITER.lock().buffer.chars[BUFFER_HEIGHT - 2][i].read();
+            assert_eq!(char::from(screen_char.ascii_char), c);
+        }
+    }
+}
