@@ -1,6 +1,9 @@
 [build]
 target = "x86_64-toyos.json"
 
+[target.'cfg(target_os = "none")']
+runner = "bootimage runner"
+
 # Re-compile core libraries for our custom target.
 [unstable]
 build-std-features = ["compiler-builtins-mem"]
