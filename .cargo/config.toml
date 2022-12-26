@@ -1,3 +1,6 @@
+[build]
+target = "x86_64-toyos.json"
+
 # Re-compile core libraries for our custom target.
 [unstable]
 build-std-features = ["compiler-builtins-mem"]
