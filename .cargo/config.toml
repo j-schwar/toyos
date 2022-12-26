@@ -1,0 +1,3 @@
+# Re-compile core libraries for our custom target.
+[unstable]
+build-std = ["core", "compiler_builtins"]
