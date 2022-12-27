@@ -10,11 +10,21 @@
 
 use core::panic::PanicInfo;
 
+use pkg_version::{pkg_version_major, pkg_version_minor, pkg_version_patch};
 use toyos::println;
+
+const VERSION_MAJOR: u32 = pkg_version_major!();
+const VERSION_MINOR: u32 = pkg_version_minor!();
+const VERSION_PATCH: u32 = pkg_version_patch!();
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    println!("Hello World{}", "!");
+    println!(
+        "Toy-OS version {}.{}.{}",
+        VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH
+    );
+
+    toyos::init();
 
     #[cfg(test)]
     test_main();
