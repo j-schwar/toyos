@@ -29,7 +29,11 @@ pub extern "C" fn _start() -> ! {
     #[cfg(test)]
     test_main();
 
-    loop {}
+    println!("It did not crash!");
+
+    loop {
+        toyos::print!("-");
+    }
 }
 
 #[cfg(not(test))]

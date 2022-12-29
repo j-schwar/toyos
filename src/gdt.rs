@@ -2,7 +2,7 @@
 //! systems was used for segmentation. More importantly, it's used to setup
 //! the Task State Segment (TSS) which contains the Interrupt Stack Table (IST)
 //! which allows stack swapping when calling interrupt handlers.
-//! 
+//!
 //! See: https://os.phil-opp.com/double-fault-exceptions/
 
 use lazy_static::lazy_static;

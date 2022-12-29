@@ -1,17 +1,30 @@
-//! The `interrupts` module defines interrupt handlers for CPU faults.
+//! The `interrupts` module defines interrupt handlers for CPU faults and
+//! hardware interrupts.
 //!
 //! The [init_idt] function can be used to initialize the interrupt descriptor
 //! table during the kernel's initial boot sequence.
 //!
 //! See https://wiki.osdev.org/Exceptions for more info on CPU exceptions.
+//! See https://os.phil-opp.com/hardware-interrupts/ for hardware interrupts.
 
 use crate::{gdt::DOUBLE_FAULT_IST_INDEX, println};
 use lazy_static::lazy_static;
+use pic8259::ChainedPics;
+use spin::Mutex;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+
+// Offset into the interrupt table for hardware interrupt handlers for the two
+// programmable interrupt controllers (PICs). Positions 0x0 through 0x1f are
+// reserved for CPU fault handlers.
+const PIC_1_OFFSET: u8 = 0x20;
+const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
+
+        // CPU faults
+
         idt.breakpoint.set_handler_fn(breakpoint_handler);
 
         unsafe {
@@ -35,14 +48,51 @@ lazy_static! {
                 .set_stack_index(DOUBLE_FAULT_IST_INDEX);
         }
 
+        // Hardware interrupts
+
+        idt[InterruptIndex::Timer.as_usize()]
+            .set_handler_fn(timer_interrupt_handler);
+
         idt
     };
+
+    static ref PICS: Mutex<ChainedPics> = Mutex::new(
+        unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) }
+    );
+}
+
+/// Interrupt indices for the Intel 8259 interrupt controller.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InterruptIndex {
+    Timer = PIC_1_OFFSET,
+}
+
+impl InterruptIndex {
+    #[inline]
+    fn as_usize(self) -> usize {
+        self as u8 as usize
+    }
 }
 
 /// Initializes the x86_64 interrupt descriptor table.
 pub fn init_idt() {
     IDT.load();
 }
+
+/// Initializes the two programmable interrupt controllers (PICs) and enable
+/// interrupts.
+pub fn init_hw_interrupts() {
+    unsafe {
+        PICS.lock().initialize();
+    }
+
+    x86_64::instructions::interrupts::enable();
+}
+
+//
+// MARK: Interrupt Handlers
+//
 
 /// Handler for the breakpoint CPU exception.
 ///
@@ -65,6 +115,15 @@ extern "x86-interrupt" fn double_fault_handler(
     _error_code: u64,
 ) -> ! {
     panic!("EXCEPTION: DOUBLE FAULT\n, {:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    crate::print!(".");
+
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Timer as u8);
+    }
 }
 
 #[cfg(test)]

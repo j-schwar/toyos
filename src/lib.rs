@@ -16,6 +16,7 @@ pub mod vga;
 pub fn init() {
     gdt::init();
     interrupts::init_idt();
+    interrupts::init_hw_interrupts();
 }
 
 /// Exit codes that can be passed to [exit_qemu].
