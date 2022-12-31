@@ -31,16 +31,14 @@ pub extern "C" fn _start() -> ! {
 
     println!("It did not crash!");
 
-    loop {
-        toyos::print!("-");
-    }
+    toyos::hlt();
 }
 
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
-    loop {}
+    toyos::hlt();
 }
 
 /// Panic handler for `cargo test`.

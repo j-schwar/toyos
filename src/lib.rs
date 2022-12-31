@@ -19,6 +19,14 @@ pub fn init() {
     interrupts::init_hw_interrupts();
 }
 
+/// Halts the CPU causing it to enter a sleep state until the next interrupt
+/// arrives.
+pub fn hlt() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
 /// Exit codes that can be passed to [exit_qemu].
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,7 +56,7 @@ pub fn exit_qemu(exit_code: QemuExitCode) -> ! {
         port.write(exit_code as u32);
     }
 
-    loop {}
+    hlt();
 }
 
 /// Trait for test cases.
@@ -102,7 +110,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
 pub extern "C" fn _start() -> ! {
     init();
     test_main();
-    loop {}
+    hlt();
 }
 
 /// Panic handler for `cargo test`.
