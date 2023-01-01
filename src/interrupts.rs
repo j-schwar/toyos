@@ -11,7 +11,7 @@ use crate::{gdt::DOUBLE_FAULT_IST_INDEX, println};
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin::Mutex;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 // Offset into the interrupt table for hardware interrupt handlers for the two
 // programmable interrupt controllers (PICs). Positions 0x0 through 0x1f are
@@ -26,6 +26,7 @@ lazy_static! {
         // CPU faults
 
         idt.breakpoint.set_handler_fn(breakpoint_handler);
+        idt.page_fault.set_handler_fn(page_fault_handler);
 
         unsafe {
             // Register the double fault handler and configure it to use a
@@ -106,6 +107,20 @@ pub fn init_hw_interrupts() {
 /// See: https://wiki.osdev.org/Exceptions#Breakpoint
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
+}
+
+/// Handler for page fault CPU exceptions.
+extern "x86-interrupt" fn page_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
+    use x86_64::registers::control::Cr2;
+
+    println!("EXCEPTION: PAGE FAULT");
+    println!("Accessed Address: {:?}", Cr2::read());
+    println!("Error Code: {:?}", error_code);
+    println!("Stack Frame: {:#?}", stack_frame);
+    crate::hlt();
 }
 
 /// Handler for double fault CPU exceptions.
