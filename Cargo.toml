@@ -17,7 +17,7 @@ name = "stack_overflow"
 harness = false
 
 [dependencies]
-bootloader = "0.9.23"
+bootloader = { version = "0.9.23", features = ["map_physical_memory"] }
 pkg-version = "1.0.0"
 pc-keyboard = "0.6.1"
 pic8259 = "0.10.1"

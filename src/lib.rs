@@ -9,6 +9,7 @@ use core::panic::PanicInfo;
 
 pub mod gdt;
 pub mod interrupts;
+pub mod mem;
 pub mod serial;
 pub mod vga;
 
@@ -104,10 +105,12 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     exit_qemu(QemuExitCode::Error);
 }
 
+#[cfg(test)]
+bootloader::entry_point!(test_kernel_main);
+
 /// Entry point for `cargo test` when testing this crate.
 #[cfg(test)]
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+fn test_kernel_main(_boot_info: &'static bootloader::BootInfo) -> ! {
     init();
     test_main();
     hlt();
