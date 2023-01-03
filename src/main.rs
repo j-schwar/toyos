@@ -8,15 +8,15 @@
 // Following the blob by Philipp Oppermann: https://os.phil-opp.com
 //
 
+extern crate alloc;
+
 use core::panic::PanicInfo;
 
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use bootloader::BootInfo;
 use pkg_version::{pkg_version_major, pkg_version_minor, pkg_version_patch};
-use toyos::println;
-use x86_64::{
-    structures::paging::{Page, Translate},
-    VirtAddr,
-};
+use toyos::{mem::BootInfoFrameAllocator, println};
+use x86_64::VirtAddr;
 
 bootloader::entry_point!(kernel_main);
 
@@ -33,36 +33,32 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     toyos::init();
 
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut page_mapper = unsafe { toyos::mem::init(phys_mem_offset) };
+    let mut mapper = unsafe { toyos::mem::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::new(&boot_info.memory_map) };
 
-    let mut frame_allocator = unsafe {
-        toyos::mem::BootInfoFrameAllocator::new(&boot_info.memory_map)
-    };
-    let addr = 0xdeadbeef000;
-    let page = Page::containing_address(VirtAddr::new(addr));
-    toyos::mem::map_to_example(page, &mut page_mapper, &mut frame_allocator);
+    toyos::allocator::init_heap(&mut mapper, &mut frame_allocator)
+        .expect("heap initialization failed");
 
-    let addresses = [
-        // the identity-mapped vga buffer page
-        0xb8000,
-        // some code page
-        0x201008,
-        // some stack page
-        0x0100_0020_1a10,
-        // Re-mapped to the vga buffer page
-        addr,
-        // virtual address mapped to physical address 0
-        boot_info.physical_memory_offset,
-    ];
+    let heap_value = Box::new(41);
+    println!("heap_value at {:p}", heap_value);
 
-    for &addr in &addresses {
-        let virt = VirtAddr::new(addr);
-        let phys = page_mapper.translate_addr(virt);
-        println!("{:?} -> {:?}", virt, phys);
+    let mut vec = Vec::new();
+    for i in 0..500 {
+        vec.push(i);
     }
+    println!("vec at {:p}", vec.as_slice());
 
-    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
-    unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e)};
+    let reference_counted = Rc::new(vec![1, 2, 3]);
+    let cloned_reference = reference_counted.clone();
+    println!(
+        "current reference count is {}",
+        Rc::strong_count(&cloned_reference)
+    );
+    core::mem::drop(reference_counted);
+    println!(
+        "current reference count is {}",
+        Rc::strong_count(&cloned_reference)
+    );
 
     #[cfg(test)]
     test_main();
