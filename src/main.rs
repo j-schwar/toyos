@@ -15,7 +15,11 @@ use core::panic::PanicInfo;
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use bootloader::BootInfo;
 use pkg_version::{pkg_version_major, pkg_version_minor, pkg_version_patch};
-use toyos::{mem::BootInfoFrameAllocator, println};
+use toyos::{
+    mem::BootInfoFrameAllocator,
+    println,
+    task::{simple_executor::SimpleExecutor, Task},
+};
 use x86_64::VirtAddr;
 
 bootloader::entry_point!(kernel_main);
@@ -23,6 +27,15 @@ bootloader::entry_point!(kernel_main);
 const VERSION_MAJOR: u32 = pkg_version_major!();
 const VERSION_MINOR: u32 = pkg_version_minor!();
 const VERSION_PATCH: u32 = pkg_version_patch!();
+
+async fn async_number() -> u32 {
+    42
+}
+
+async fn example_task() {
+    let number = async_number().await;
+    println!("async number: {}", number);
+}
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!(
@@ -39,26 +52,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     toyos::allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("heap initialization failed");
 
-    let heap_value = Box::new(41);
-    println!("heap_value at {:p}", heap_value);
-
-    let mut vec = Vec::new();
-    for i in 0..500 {
-        vec.push(i);
-    }
-    println!("vec at {:p}", vec.as_slice());
-
-    let reference_counted = Rc::new(vec![1, 2, 3]);
-    let cloned_reference = reference_counted.clone();
-    println!(
-        "current reference count is {}",
-        Rc::strong_count(&cloned_reference)
-    );
-    core::mem::drop(reference_counted);
-    println!(
-        "current reference count is {}",
-        Rc::strong_count(&cloned_reference)
-    );
+    let mut executor = SimpleExecutor::new();
+    executor.spawn(Task::new(example_task()));
+    executor.run();
 
     #[cfg(test)]
     test_main();
