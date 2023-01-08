@@ -12,13 +12,12 @@ extern crate alloc;
 
 use core::panic::PanicInfo;
 
-use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use bootloader::BootInfo;
 use pkg_version::{pkg_version_major, pkg_version_minor, pkg_version_patch};
 use toyos::{
     mem::BootInfoFrameAllocator,
     println,
-    task::{simple_executor::SimpleExecutor, Task},
+    task::{executor::Executor, keyboard::print_keypresses, Task},
 };
 use x86_64::VirtAddr;
 
@@ -52,16 +51,15 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     toyos::allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("heap initialization failed");
 
-    let mut executor = SimpleExecutor::new();
-    executor.spawn(Task::new(example_task()));
-    executor.run();
-
     #[cfg(test)]
     test_main();
 
     println!("It did not crash!");
 
-    toyos::hlt();
+    let mut executor = Executor::new();
+    executor.spawn(Task::new(example_task()));
+    executor.spawn(Task::new(print_keypresses()));
+    executor.run();
 }
 
 #[cfg(not(test))]

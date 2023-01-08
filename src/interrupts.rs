@@ -146,29 +146,11 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 
 /// Handler for keyboard interrupts.
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
     use x86_64::instructions::port::Port;
 
-    lazy_static! {
-        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
-            Mutex::new(Keyboard::new(HandleControl::Ignore));
-    }
-
     let mut port = Port::new(0x60);
-    let mut keyboard = KEYBOARD.lock();
     let scancode: u8 = unsafe { port.read() };
-    match keyboard.add_byte(scancode) {
-        Ok(Some(event)) => {
-            if let Some(key) = keyboard.process_keyevent(event) {
-                match key {
-                    DecodedKey::Unicode(character) => crate::print!("{}", character),
-                    DecodedKey::RawKey(key) => crate::print!("{:?}", key),
-                }
-            }
-        }
-
-        _ => {}
-    }
+    crate::task::keyboard::add_scancode(scancode);
 
     unsafe {
         PICS.lock()
